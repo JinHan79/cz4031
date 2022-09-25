@@ -1,73 +1,106 @@
 #ifndef MEMORY_POOL_H
 #define MEMORY_POOL_H
-#include <cstring>
-#include <iostream>
+
+#include "types.h"
+
 #include <vector>
+#include <unordered_map>
 #include <tuple>
-#include <algorithm>
 
-const int MAX = 5;
-
-using namespace std;
-
-struct Record {
-    char tconst[10];
-    float averageRating;
-    unsigned int numVotes;
-};
-
-class MemmoryPool {
-private:
-    unsigned char *poolPtr;
-    unsigned char *blockPtr;
-
-    unsigned int poolSize;
-    unsigned int blockSize;
-    unsigned int blocksUsed;
-    unsigned int recordsUsed;
-    unsigned int curBlock;
-
-    int blocksAllocated;
-    int blocksAvailable;
-
+class MemoryPool
+{
 public:
-    MemoryPool(unsigned int poolSize, unsigned int blockSize);
+  // =============== Methods ================ //
 
-    ~MemoryPool();
+  // Creates a new memory pool with the following parameters:
+  // maxPoolSize: Maximum size of the memory pool.
+  // blockSize: The fixed size of each block in the pool.
+  MemoryPool(std::size_t maxPoolSize, std::size_t blockSize);
 
-    bool allocBlock();
+  // Allocate a new block from the memory pool. Returns false if error.
+  bool allocateBlock();
 
-    tuple<void *, unsigned int> writeRecord(unsigned int recordSize);
+  // Allocates a new chunk to the memory pool. Creates a new block if chunk is unable to fit in current free block.
+  // Returns a struct with the block's address and the record's offset within the block.
+  Address allocate(std::size_t sizeRequired);
 
-    bool deleteRecord(unsigned char *blockAddress, unsigned int offset, unsigned int recordSize);
+  // Deallocates an existing record and block if block becomes empty. Returns false if error.
+  bool deallocate(Address address, std::size_t sizeToDelete);
 
-    unsigned int getBlockSize(){
-        return blockSize;
-    }
+  // Give a block address, offset and size, returns the data there.
+  void *loadFromDisk(Address address, std::size_t size);
 
-    unsigned int getPoolSize() {
-        return poolSize;
-    }
+  // Save data to the disk given a main memory address.
+  Address saveToDisk(void *itemAddress, std::size_t size);
 
-    int getBlocksUsed() {
-        return blocksUsed;
-    }
+  // Update data in disk if I have already saved it before.
+  Address saveToDisk(void *itemAddress, std::size_t size, Address diskAddress);
 
-    int getRecordsUsed() {
-        return recordsUsed;
-    }
+  // Returns the maximum size of this memory pool.
+  std::size_t getMaxPoolSize() const
+  {
+    return maxPoolSize;
+  }
 
-    int getCurBlock(){
-        return curBlock;
-    }
+  // Returns the size of a block in memory pool.
+  std::size_t getBlockSize() const
+  {
+    return blockSize;
+  };
 
-    int getBlocksAllocated() {
-        return blocksAllocated;
-    }
+  // Returns the size used in the current block.
+  std::size_t getBlockSizeUsed() const
+  {
+    return blockSizeUsed;
+  };
 
-    int getBlocksAvailable() {
-        return blocksAvailable;
-    }
+  // Returns current size used in memory pool (total blocks size).
+  std::size_t getSizeUsed() const
+  {
+    return sizeUsed;
+  }
+
+  // Returns actual size of all records stored in memory pool.
+  std::size_t getActualSizeUsed() const
+  {
+    return actualSizeUsed;
+  }
+
+  // Returns number of currently allocated blocks.
+  int getAllocated() const
+  {
+    return allocated;
+  };
+
+  int getBlocksAccessed() const
+  {
+    return blocksAccessed;
+  }
+
+  int resetBlocksAccessed()
+  {
+    int tempBlocksAccessed = blocksAccessed;
+    blocksAccessed = 0;
+    return tempBlocksAccessed;
+  }
+
+  // Destructor
+  ~MemoryPool();
+
+private:
+  // =============== Data ================ //
+
+  std::size_t maxPoolSize;    // Maximum size allowed for pool.
+  std::size_t blockSize;      // Size of each block in pool in bytes.
+  std::size_t sizeUsed;       // Current size used up for storage (total block size).
+  std::size_t actualSizeUsed; // Actual size used based on records stored in storage.
+  std::size_t blockSizeUsed;  // Size used up within the curent block we are pointing to.
+
+  int allocated;      // Number of currently allocated blocks.
+  int blocksAccessed; // Counts number of blocks accessed.
+
+  void *pool;  // Pointer to the memory pool.
+  void *block; // Current block pointer we are inserting to.
 };
 
 #endif
