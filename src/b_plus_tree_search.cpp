@@ -1,117 +1,109 @@
 #include "bplustree.h"
 #include "types.h"
 
-#include <vector>
-#include <cstring>
 #include <iostream>
 
 using namespace std;
 
-void BPlusTree::search(float lowerBoundKey, float upperBoundKey)
-{ 
-  // Tree is empty.
-  if (rootAddress == nullptr)
+// Search operation
+void BPlusTree::search(float lowerBound, float upperBound)
+{
+  if (root == nullptr)
   {
-    throw std::logic_error("Tree is empty!");
+    cout << "Tree is empty\n";
+    return;
   }
-  // Else iterate through root node and follow the keys to find the correct key.
   else
   {
     // Load in root from disk.
     Address rootDiskAddress{rootAddress, 0};
     root = (Node *)index->loadFromDisk(rootDiskAddress, nodeSize);
 
-    // for displaying to output file
-    std::cout << "Index node accessed. Content is -----";
+    // output
+    cout << "Accessing index node. Displaying node: ";
     displayNode(root);
 
     Node *cursor = root;
 
-    bool found = false;
-
-    // While we haven't hit a leaf node, and haven't found a range.
+    // Loop until we reach a leaf node
     while (cursor->isLeaf == false)
     {
-      // Iterate through each key in the current node. We need to load nodes from the disk whenever we want to traverse to another node.
-      for (int i = 0; i < cursor->numKeys; i++)
+      // Iterate through the keys in the current node
+      for (int i = 0; i < cursor->curKeyCount; i++)
       {
-        // If lowerBoundKey is lesser than current key, go to the left pointer's node to continue searching.
-        if (lowerBoundKey < cursor->keys[i])
+
+        if (lowerBound < cursor->keys[i])
         {
           // Load node from disk to main memory.
           cursor = (Node *)index->loadFromDisk(cursor->pointers[i], nodeSize);
-
-          // for displaying to output file
-          std::cout << "Index node accessed. Content is -----";
+          // output
+          cout << "Accessing index node. Displaying node: ";
           displayNode(cursor);
-
           break;
         }
-        // If we reached the end of all keys in this node (larger than all), then go to the right pointer's node to continue searching.
-        if (i == cursor->numKeys - 1)
+
+        // If there are no more keys in this node,
+        if (i == cursor->curKeyCount - 1)
         {
           // Load node from disk to main memory.
           // Set cursor to the child node, now loaded in main memory.
           cursor = (Node *)index->loadFromDisk(cursor->pointers[i + 1], nodeSize);
 
           // for displaying to output file
-          std::cout << "Index node accessed. Content is -----";
+          cout << "Accessing index node. Displaying node: ";
           displayNode(cursor);
           break;
         }
       }
     }
 
-    // When we reach here, we have hit a leaf node corresponding to the lowerBoundKey.
-    // Again, search each of the leaf node's keys to find a match.
-    // vector<Record> results;
-    // unordered_map<void *, void *> loadedBlocks; // Maintain a reference to all loaded blocks in main memory.
-
-    // Keep searching whole range until we find a key that is out of range.
-    bool stop = false;
-
-    while (stop == false)
+    // We've reach a leaf node (i.e. the 1st level)
+    // Iterate through all the nodes until upper bound or out of range
+    bool done = false;
+    while (!done)
     {
-      int i;
-      for (i = 0; i < cursor->numKeys; i++)
+
+      int i = 0;
+      for (i = 0; i < cursor->curKeyCount; i++)
       {
-        // Found a key within range, now we need to iterate through the entire range until the upperBoundKey.
-        if (cursor->keys[i] > upperBoundKey)
+        // key exceeds Upper bound
+        if (cursor->keys[i] > upperBound)
         {
-          stop = true;
+          done = true;
           break;
         }
-        if (cursor->keys[i] >= lowerBoundKey && cursor->keys[i] <= upperBoundKey)
+
+        // key is still within range of lower bound and upper bound
+        if (cursor->keys[i] >= lowerBound && cursor->keys[i] <= upperBound)
         {
-          // for displaying to output file
-          std::cout << "Index node (LLNode) accessed. Content is -----";
+          // output
+          cout << "Accessing leaf node. Displaying node: ";
           displayNode(cursor);
 
-          // Add new line for each leaf node's linked list printout.
-          std::cout << endl;
-          std::cout << "LLNode: tconst for average rating: " << cursor->keys[i] << " > ";          
+          cout << endl;
+          cout << "Average rating: " << cursor->keys[i] << " > ";
 
-          // Access the linked list node and print records.
+          // Access the LL and print to output
           displayLL(cursor->pointers[i]);
         }
       }
 
-      // On the last pointer, check if last key is max, if it is, stop. Also stop if it is already equal to the max
-      if (cursor->pointers[cursor->numKeys].blockAddress != nullptr && cursor->keys[i] != upperBoundKey)
+      // Check if the last key is still within range of lower bound and upper bound. If so, move to next leaf node
+      if (cursor->keys[i] != upperBound && cursor->pointers[cursor->curKeyCount].blockAddress != nullptr)
       {
-        // Set cursor to be next leaf node (load from disk).
-        cursor = (Node *)index->loadFromDisk(cursor->pointers[cursor->numKeys], nodeSize);
+        // Set cursor to be next leaf node
+        cursor = (Node *)index->loadFromDisk(cursor->pointers[cursor->curKeyCount], nodeSize);
 
-        // for displaying to output file
-        std::cout << "Index node accessed. Content is -----";
+        // output
+        cout << "Accessing leaf node. Displaying node: ";
         displayNode(cursor);
-
       }
       else
       {
-        stop = true;
+        done = true;
       }
     }
+
   }
   return;
 }
