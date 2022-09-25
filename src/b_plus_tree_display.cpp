@@ -6,138 +6,134 @@
 
 using namespace std;
 
-// Display a node and its contents in the B+ Tree.
-void BPlusTree::displayNode(Node *node)
+void BPlusTree::displayNode(Node *btreenode)
 {
   // Print out all contents in the node as such |pointer|key|pointer|
-  int i = 0;
-  std::cout << "|";
-  for (int i = 0; i < node->numKeys; i++)
+  int ctr = 0;
+  std::cout << ">";
+  int keys = btreenode->numKeys;
+  while (ctr < keys)
   {
-    std::cout << node->pointers[i].blockAddress << " | ";
-    std::cout << node->keys[i] << " | ";
+    std::cout << btreenode->pointers[ctr].blockAddress << " > ";
+    std::cout << btreenode->keys[ctr] << " > ";
+    ctr++;
   }
 
+  ctr++;
   // Print last filled pointer
-  if (node->pointers[node->numKeys].blockAddress == nullptr) {
-    std::cout << " Null |";
-  }
-  else {
-    std::cout << node->pointers[node->numKeys].blockAddress << "|";
-  }
+  string lastptr = btreenode->pointers[ctr].blockAddress == nullptr ? "none" : ">";
+  std::cout << lastptr;
 
-  for (int i = node->numKeys; i < maxKeys; i++)
-  {
-    std::cout << " x |";      // Remaining empty keys
-    std::cout << "  Null  |"; // Remaining empty pointers
-  }
+  // for (int ctr = node->numKeys; ctr < maxKeys; ctr++)
+  // {
+  //   std::cout << " x >";      // Remaining empty keys
+  //   std::cout << "  Null  >"; // Remaining empty pointers
+  // }
 
-  std::cout << endl;
+  // std::cout << endl;
 }
 
 // Display a block and its contents in the disk. Assume it's already loaded in main memory.
-void BPlusTree::displayBlock(void *blockAddress)
+void BPlusTree::displayBlock(void *blkAdr)
 {
   // Load block into memory
-  void *block = operator new(nodeSize);
-  std::memcpy(block, blockAddress, nodeSize);
+  void *blk = operator new(nodeSize);
+  std::memcpy(blk, blkAdr, nodeSize);
 
-  unsigned char testBlock[nodeSize];
-  memset(testBlock, '\0', nodeSize);
+  unsigned char blkchk[nodeSize];
+  memset(blkchk, '\0', nodeSize);
 
   // Block is empty.
-  if (memcmp(testBlock, block, nodeSize) == 0)
+  if (memcmp(blkchk, blk, nodeSize) == 0)
   {
-    std::cout << "Empty block!" << '\n';
+    std::cout << "empty" << '\n';
     return;
   }
 
-  unsigned char *blockChar = (unsigned char *)block;
+  unsigned char *blkchar = (unsigned char *)blk;
 
-  int i = 0;
-  while (i < nodeSize)
+  int ctr = 0;
+  while (ctr < nodeSize)
   {
     // Load each record
-    void *recordAddress = operator new(sizeof(Record));
-    std::memcpy(recordAddress, blockChar, sizeof(Record));
+    void *recAdr = operator new(sizeof(Record));
+    std::memcpy(recAdr, blkchar, sizeof(Record));
+    Record *rec = (Record *)recAdr;
 
-    Record *record = (Record *)recordAddress;
+    std::cout << "[" << rec->tconst << "|" << rec->averageRating << "|" << rec->numVotes << "]  ";
 
-    std::cout << "[" << record->tconst << "|" << record->averageRating << "|" << record->numVotes << "]  ";
-    blockChar += sizeof(Record);
-    i += sizeof(Record);
+    blkchar += sizeof(Record);
+    ctr += sizeof(Record);
   }
-  
 }
 
 // Print the tree
-void BPlusTree::display(Node *cursorDiskAddress, int level)
+void BPlusTree::display(Node *flagDisk, int lvl)
 {
-  // Load in cursor from disk.
-  Address cursorMainMemoryAddress{cursorDiskAddress, 0};
-  Node *cursor = (Node *)index->loadFromDisk(cursorMainMemoryAddress, nodeSize);
+  Address flagMM{flagDisk, 0};
+  Node *flag = (Node *)index->loadFromDisk(flagMM, nodeSize);
 
   // If tree exists, display all nodes.
-  if (cursor != nullptr)
+  if (flag != nullptr)
   {
-    for (int i = 0; i < level; i++)
+    int ctr = 0;
+    while (ctr < lvl)
     {
-      std::cout << "   ";
+      std::cout << ' ';
+      ctr++;
     }
-    std::cout << " level " << level << ": ";
 
-    displayNode(cursor);
+    std::cout << " lvl " << lvl << "= ";
+    ctr = 0;
 
-    if (cursor->isLeaf != true)
+    displayNode(flag);
+
+    if (flag->isLeaf == false)
     {
-      for (int i = 0; i < cursor->numKeys + 1; i++)
+      while (ctr < flag->numKeys + 1)
       {
-        // Load node in from disk to main memory.
-        Node *mainMemoryNode = (Node *)index->loadFromDisk(cursor->pointers[i], nodeSize);
-
-        display((Node *)mainMemoryNode, level + 1);
+        Node *mmNode = (Node *)index->loadFromDisk(flag->pointers[ctr], nodeSize);
+        display((Node *)mmNode, lvl + 1);
+        ctr++;
       }
     }
   }
 }
 
-void BPlusTree::displayLL(Address LLHeadAddress)
+void BPlusTree::displayLL(Address llHead)
 {
   // Load linked list head into main memory.
-  Node *head = (Node *)index->loadFromDisk(LLHeadAddress, nodeSize);
+  Node *head = (Node *)index->loadFromDisk(llHead, nodeSize);
 
   // Print all records in the linked list.
-  for (int i = 0; i < head->numKeys; i++)
+  int ctr = 0;
+  while (ctr < head->numKeys)
   {
-    // Load the block from disk.
-    // void *blockMainMemoryAddress = operator new(nodeSize);
-    // std::memcpy(blockMainMemoryAddress, head->pointers[i].blockAddress, nodeSize);
-
-    std::cout << "\nData block accessed. Content is -----";
-    displayBlock(head->pointers[i].blockAddress);
+    std::cout << "\ndata block";
+    displayBlock(head->pointers[ctr].blockAddress);
     std::cout << endl;
 
-    Record result = *(Record *)(disk->loadFromDisk(head->pointers[i], sizeof(Record)));
-    std::cout << result.tconst << " | ";
+    Record res = *(Record *)(disk->loadFromDisk(head->pointers[ctr], sizeof(Record)));
+    std::cout << res.tconst << " | ";
 
-
+    ctr++;
   }
 
+  ctr++;
   // Print empty slots
-  for (int i = head->numKeys; i < maxKeys; i++)
+  while (ctr < maxKeys)
   {
-    std::cout << "x | ";
+    std::cout << "empty";
+    ctr++;
   }
-  
-  // End of linked list
+
+  // End of linked list or otherwise
   if (head->pointers[head->numKeys].blockAddress == nullptr)
   {
-    std::cout << "End of linked list" << endl;
+    std::cout << "ll end" << endl;
     return;
   }
-
-  // Move to next node in linked list.
-  if (head->pointers[head->numKeys].blockAddress != nullptr)
+  else
   {
     displayLL(head->pointers[head->numKeys]);
   }
