@@ -206,6 +206,8 @@ void BPlusTree::insert(Address address, int key)
             {
                 insertInternal(newLeaf->keys[0], (Node*)parentDiskAddress, (Node*)newLeafAddress.blockAddress);
             }
+
+            nodesCount = index->getAllocated();
         }
     }
 }
